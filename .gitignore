@@ -6,3 +6,6 @@ __pycache__/
 # the simulator build is large + distributed separately; drop it in ./sim/
 sim/
 *.log
+# local simulator vision/debug captures
+*.png
+tmp_*.py
