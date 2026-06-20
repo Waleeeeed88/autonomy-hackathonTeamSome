@@ -95,43 +95,30 @@ async def read_first_turn(drone):
     return branch_x, first
 
 async def read_sphere_count(drone, branch_x):
-    # STOP at the sphere clue, face the clue, and count only after the drone is
-    # still. This avoids counting while sliding across/away from the orange line.
-    # For the +X branch the spheres are just behind the junction, so look back
-    # toward -X (pi). For the -X branch look back toward +X (0).
-    look_yaw = math.pi if branch_x > 0 else 0.0
-    # y=-20 keeps the cluster in-frame on both left and right branches; at y=-11
-    # the right-branch camera can be too close/sideways and miss every ball.
-    stop_y = -20.0
-    await do(drone.move_to_position_async(branch_x, stop_y, -ALT, SLOW))
-    await do(drone.rotate_to_yaw_async(look_yaw))
-    await do(drone.hover_async())
-    time.sleep(0.8)
-
+    # Calibrated boat demo/E2E sphere read: stop-and-sample several positions
+    # around the clue. On the +X/Left branch this reliably keeps all blue spheres
+    # in the FPV frame; the closer single-stop variant clipped balls and caused
+    # wrong boat routing.
     counts = []
-    for i in range(7):
-        # Tiny yaw bracketing helps if a sphere is half-clipped at the edge, but
-        # keeps the drone stopped at the clue. No object/property oracle is used.
-        yaw = look_yaw + math.radians([-5, -3, 0, 0, 0, 3, 5][i])
-        await do(drone.rotate_to_yaw_async(yaw))
+    look_yaw = math.pi if branch_x > 0 else 0.0
+    for y in [-20, -15, -11, -8]:
+        await do(drone.move_to_position_async(branch_x, y, -ALT, SLOW))
+        await do(drone.rotate_to_yaw_async(look_yaw))
         await do(drone.hover_async())
-        time.sleep(0.22)
+        time.sleep(0.45)
         frame = read_frame(drone)
         comps = blue_sphere_components(frame)
-        cv2.imwrite(f"hard_spheres_stop_x{int(branch_x)}_{i}.png", frame)
+        cv2.imwrite(f"hard_spheres_x{int(branch_x)}_y{y}.png", frame)
         c = len(comps)
         if 1 <= c <= 5:
             counts.append(c)
-        print(f">> STOPPED sphere sample {i+1}/7: count={c} comps={comps}", flush=True)
-
-    await do(drone.rotate_to_yaw_async(look_yaw))
+        print(f">> sphere stopped view y={y}: count={c} comps={comps}", flush=True)
     if not counts:
-        raise RuntimeError("could not count blue spheres while stopped at clue")
-    # Use the median; it is more robust than max because edge-clipped spheres can
-    # fragment into two blue blobs, especially at close range.
-    counts_sorted = sorted(counts)
-    count = int(counts_sorted[len(counts_sorted)//2])
-    print(f">> sphere count decided={count} from stopped samples {counts}", flush=True)
+        raise RuntimeError("could not count blue spheres")
+    freq = Counter(counts)
+    # Prefer the most frequent count; tie-break lower to avoid fragment-overcount.
+    count = sorted(freq.items(), key=lambda kv: (kv[1], -kv[0]), reverse=True)[0][0]
+    print(f">> sphere count decided={count} from {counts}", flush=True)
     return count
 
 def route_target(first, second):

@@ -113,8 +113,11 @@ async def solve_one_left_branch_round(client, world, drone, attempt):
     except Exception as e:
         print(f">> arrow read not confident; restart sim for a fresh randomized round: {type(e).__name__}: {e}", flush=True)
         raise SystemExit(3)
+    if first != "Left":
+        print(">> got Right branch; restart sim for calibrated BOAT demo run", flush=True)
+        raise SystemExit(3)
     # Follow the orange line to the sphere clue area, STOP, then count balls by camera.
-    await line_locked_move(drone, branch_x, -20.0, -ALT, SLOW, 0 if branch_x > 0 else math.pi, "first-leg-to-spheres")
+    await line_locked_move(drone, branch_x, -11.3, -ALT, SLOW, 0, "first-leg-to-spheres")
     count = await read_sphere_count(drone, branch_x)
     second = "Left" if count % 2 == 0 else "Right"
     vehicle, path_x, room_y, tx, ty, tz = route_target(first, second)
@@ -123,6 +126,9 @@ async def solve_one_left_branch_round(client, world, drone, attempt):
         f"second={second} vehicle={vehicle} target=({tx:.1f},{ty:.1f},{tz:.1f})",
         flush=True,
     )
+    if vehicle != "boat":
+        print(">> decoded non-boat route; restart for BOAT demo case", flush=True)
+        raise SystemExit(3)
 
     yaw2 = -math.pi / 2 if room_y < 0 else math.pi / 2
     await line_locked_move(drone, path_x, room_y, -ALT, FAST, yaw2, "second-leg-on-orange-line")
