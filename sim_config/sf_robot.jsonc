@@ -149,8 +149,10 @@
         "lock-yaw": true
       },
       "origin": {
-        "xyz": "-3.0 0.0 -1.5",
-        "rpy-deg": "0 -25 0"
+        // Front-facing chase/demo camera: mount it slightly in front of the
+        // drone and look forward, instead of behind the drone looking at its back.
+        "xyz": "0.35 0.0 -0.05",
+        "rpy-deg": "0 0 0"
       }
     },
     {
